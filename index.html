@@ -741,7 +741,7 @@ details.chk .raw{max-height:320px;overflow:auto}
 const DB  = window.DB;
 const CBQ = window.CBQ;
 const AUD = window.AUD;
-const BUILD = '20261111_105106';
+const BUILD = '20261111_195724';
 
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -6247,7 +6247,7 @@ function viewPracHistoryDetail(idx){
         const isRight = it.right;
         const qObj = BYID[it.id];
         const stemText = it.stem || (qObj ? qObj.stem : '');
-        return '<div class="modal-q-item" style="cursor:pointer" onclick="openSingleQReview(\'' + it.id + '\', \'' + (it.ans || '') + '\')">' +
+        return '<div class="modal-q-item" style="cursor:pointer" onclick="openSingleQReview(\'' + it.id + '\', \'' + (it.ans || '') + '\', ' + idx + ', ' + items.indexOf(it) + ')">' +
           '<div style="flex:1">' +
             '<div style="font-size:12px;margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
               '<span class="tag ' + (isRight ? 'ok' : 'bad') + '" style="font-weight:700">Câu ' + (items.indexOf(it) + 1) + ' (' + it.id + ')</span>' +
@@ -6356,8 +6356,9 @@ function viewPracHistoryDetail(idx){
       redoBtn.onclick = () => {
         closePracSummaryModal();
         const wrongIds = wrongItems.map(it => it.id);
-        startRun(wrongIds, {redo:true, label:'Làm lại ' + wrongIds.length + ' câu sai (Lượt ' + r.date + ')'});
-        go('practice');
+        startRun(wrongIds, {redo:true, label:'Làm lại ' + wrongIds.length + ' câu sai (Lượt ' + dateStr + ')'});
+        go('quiz');
+        window.scrollTo({top:0, behavior:'smooth'});
       };
     }
 
@@ -6366,8 +6367,34 @@ function viewPracHistoryDetail(idx){
       revAllBtn.onclick = () => {
         closePracSummaryModal();
         const allIds = items.map(it => it.id);
-        startRun(allIds, {redo:true, label:'Xem lại ' + allIds.length + ' câu (Lượt ' + r.date + ')'});
-        go('practice');
+        startRun(allIds, {review:true, redo:true, label:'Xem lại ' + allIds.length + ' câu (Lượt ' + dateStr + ')'});
+        let okCount = 0, badCount = 0;
+        items.forEach(it => {
+          if(it.ans !== undefined && it.ans !== null && it.ans !== ''){
+            run.answered[it.id] = it.ans;
+            const qObj = BYID[it.id];
+            const correctAns = qObj ? qObj.a : it.a;
+            if(it.right || it.ans === correctAns) okCount++;
+            else badCount++;
+          }
+          if(it.flag) run.flag[it.id] = true;
+        });
+        run.ok = okCount;
+        run.bad = badCount;
+        run.done = items.length;
+        run.review = true;
+        run.submitted = true;
+        stopPracClock();
+        const pfb = $('#pracFinishBtn');
+        if(pfb){
+          pfb.textContent = '📊 Xem kết quả [K]';
+          pfb.className = 'btn sm pri';
+          pfb.onclick = () => viewPracHistoryDetail(idx);
+        }
+        drawQ();
+        renderNav();
+        go('quiz');
+        window.scrollTo({top:0, behavior:'smooth'});
       };
     }
   }
@@ -6381,21 +6408,78 @@ function viewPracHistoryDetail(idx){
   }
 }
 
-function openSingleQReview(qid, pickedAns){
+function openSingleQReview(qid, pickedAns, histIdx, qIdxInRun){
   closePracSummaryModal();
   if(!BYID[qid]){
     toast('Không tìm thấy câu hỏi ' + qid, 'warn');
     return;
   }
-  startRun([qid], {review:true, redo:true, label:'Xem lại câu ' + qid});
-  if(pickedAns !== undefined && pickedAns !== null && pickedAns !== ''){
-    run.answered[qid] = pickedAns;
+  const allList = S.prac || [];
+  const list = allList.filter(r => {
+    if(appPart === 'all') return true;
+    if(r.part !== undefined) return String(r.part) === String(appPart);
+    if(r.label && /P1|Part\s*1/i.test(r.label)) return appPart === '1';
+    if(r.label && /P2|Part\s*2/i.test(r.label)) return appPart === '2';
+    return appPart === '2';
+  });
+  const r = (histIdx !== undefined && histIdx !== null) ? list[histIdx] : null;
+  const items = (r && r.items && r.items.length) ? r.items : null;
+
+  if(items){
+    const allIds = items.map(it => it.id);
+    const dateStr = r.ts ? new Date(r.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + r.date : r.date;
+    startRun(allIds, {review:true, redo:true, label:'Xem lại ' + allIds.length + ' câu (Lượt ' + dateStr + ')'});
+    let okCount = 0, badCount = 0;
+    items.forEach(it => {
+      if(it.ans !== undefined && it.ans !== null && it.ans !== ''){
+        run.answered[it.id] = it.ans;
+        const qObj = BYID[it.id];
+        const correctAns = qObj ? qObj.a : it.a;
+        if(it.right || it.ans === correctAns) okCount++;
+        else badCount++;
+      }
+      if(it.flag) run.flag[it.id] = true;
+    });
+    run.ok = okCount;
+    run.bad = badCount;
+    run.done = items.length;
+    run.review = true;
+    run.submitted = true;
+    stopPracClock();
+    if(qIdxInRun !== undefined && qIdxInRun >= 0 && qIdxInRun < run.list.length){
+      run.i = qIdxInRun;
+    } else {
+      const foundIdx = run.list.findIndex(x => x.id === qid);
+      if(foundIdx !== -1) run.i = foundIdx;
+    }
+    const pfb = $('#pracFinishBtn');
+    if(pfb){
+      pfb.textContent = '📊 Xem kết quả [K]';
+      pfb.className = 'btn sm pri';
+      pfb.onclick = () => viewPracHistoryDetail(histIdx);
+    }
+  } else {
+    startRun([qid], {review:true, redo:true, label:'Xem lại câu ' + qid});
+    if(pickedAns !== undefined && pickedAns !== null && pickedAns !== ''){
+      run.answered[qid] = pickedAns;
+    }
+    run.review = true;
+    run.submitted = true;
+    stopPracClock();
+    const pfb = $('#pracFinishBtn');
+    if(pfb){
+      pfb.textContent = '📊 Xem kết quả [K]';
+      pfb.className = 'btn sm pri';
+      if(histIdx !== undefined && histIdx !== null){
+        pfb.onclick = () => viewPracHistoryDetail(histIdx);
+      } else {
+        pfb.onclick = () => openPracSummaryModal();
+      }
+    }
   }
-  run.review = true;
-  run.submitted = true;
   drawQ();
   renderNav();
-  go('practice');
+  go('quiz');
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -7239,6 +7323,7 @@ $('#reset').onclick = async () => {
    NAV + BOOT
    ============================================================ */
 function go(tab){
+  if(tab === 'practice') tab = 'quiz';
   // 1. Tạm dừng khi chuyển sang tab khác trong lúc đang làm bài
   const isLeavingQuiz = tab !== 'quiz' && (run && !run.exam && !run.submitted && !run.paused);
   if(isLeavingQuiz){
@@ -7260,6 +7345,7 @@ function go(tab){
 }
 
 function applyGo(tab){
+  if(tab === 'practice') tab = 'quiz';
   if(tab !== 'quiz' && !(run && !run.exam)) stopPracClock();
   if(tab !== 'cbq') stopCbqClock();
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
