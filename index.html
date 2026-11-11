@@ -741,7 +741,7 @@ details.chk .raw{max-height:320px;overflow:auto}
 const DB  = window.DB;
 const CBQ = window.CBQ;
 const AUD = window.AUD;
-const BUILD = '20261111_081531';
+const BUILD = '20261111_101022';
 
 const $  = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -3248,7 +3248,17 @@ async function submitPractice(skipConfirm){
       paceSec: paceSec,
       imaPass: imaPass,
       flagCount: flagList.length,
-      part: run.part || (run.list && run.list[0] ? getQPart(run.list[0]) : (appPart !== 'all' ? +appPart : 2))
+      part: run.part || (run.list && run.list[0] ? getQPart(run.list[0]) : (appPart !== 'all' ? +appPart : 2)),
+      items: run.list.map(q => ({
+        id: q.id,
+        u: q.u,
+        s: q.s,
+        stem: (q.stem || '').slice(0, 140),
+        ans: run.answered[q.id] || null,
+        a: q.a,
+        right: run.answered[q.id] === q.a,
+        flag: !!(run.flag && run.flag[q.id])
+      }))
     };
     (S.prac || (S.prac = [])).unshift(rec);
     S.prac = S.prac.slice(0, 50);
@@ -3485,7 +3495,18 @@ function summary(){
       pace: paceMin,
       paceSec: paceSec,
       imaPass: imaPass,
-      part: run.part || (run.list && run.list[0] ? getQPart(run.list[0]) : (appPart !== 'all' ? +appPart : 2))
+      flagCount: (run.list ? run.list.filter(q => run.flag && run.flag[q.id]).length : 0),
+      part: run.part || (run.list && run.list[0] ? getQPart(run.list[0]) : (appPart !== 'all' ? +appPart : 2)),
+      items: run.list.map(q => ({
+        id: q.id,
+        u: q.u,
+        s: q.s,
+        stem: (q.stem || '').slice(0, 140),
+        ans: run.answered[q.id] || null,
+        a: q.a,
+        right: run.answered[q.id] === q.a,
+        flag: !!(run.flag && run.flag[q.id])
+      }))
     };
     (S.prac || (S.prac = [])).unshift(rec);
     S.prac = S.prac.slice(0, 50);
@@ -6130,8 +6151,8 @@ function renderPracHistory(){
   $('#pracPaceSummary').innerHTML = 'Bình quân' + partText + ': <b>' + avgPace + ' phút/câu</b> · Đạt chuẩn IMA: <b style="color:' + (passPct >= 70 ? 'var(--ok)' : 'var(--warn)') + '">' + passPct + '%</b> (' + passCount + '/' + list.length + ' lượt)';
 
   let h = '<div class="scroll"><table class="plain">' +
-    '<tr><th>Thời gian</th><th>Nội dung</th><th class="num">Số câu</th><th class="num">Đúng</th><th class="num">%</th><th class="num">Tổng thời gian</th><th class="num">Bình quân</th><th class="num">Chuẩn IMA (1.8p)</th></tr>';
-  list.slice(0, 30).forEach(r => {
+    '<tr><th>Thời gian</th><th>Nội dung</th><th class="num">Số câu</th><th class="num">Đúng</th><th class="num">%</th><th class="num">Tổng thời gian</th><th class="num">Bình quân</th><th class="num">Chuẩn IMA (1.8p)</th><th class="num" style="text-align:center">Chi tiết</th></tr>';
+  list.slice(0, 30).forEach((r, idx) => {
     const isPass = r.imaPass !== undefined ? r.imaPass : (r.pace <= 1.8);
     const dateStr = r.ts ? new Date(r.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + r.date : r.date;
     h += '<tr>' +
@@ -6143,6 +6164,7 @@ function renderPracHistory(){
       '<td class="num">' + fmt(r.secs) + '</td>' +
       '<td class="num"><b>' + r.pace + '</b> p/câu</td>' +
       '<td class="num">' + (isPass ? '<span class="tag good">✓ Đạt chuẩn</span>' : '<span class="tag warn">⚠ Chậm hơn</span>') + '</td>' +
+      '<td class="num" style="text-align:center"><button class="btn sm" onclick="viewPracHistoryDetail(' + idx + ')" style="padding:4px 10px;font-size:12px;font-weight:600">👁 Xem</button></td>' +
       '</tr>';
   });
   h += '</table></div>';
@@ -6175,8 +6197,8 @@ function renderCbqHistory(){
   $('#cbqPaceSummary').innerHTML = 'Bình quân' + partText + ': <b>' + fmt(avgSecs) + '</b>/case · Đạt chuẩn IMA: <b style="color:' + (passPct >= 70 ? 'var(--ok)' : 'var(--warn)') + '">' + passPct + '%</b> (' + passCount + '/' + list.length + ' case)';
 
   let h = '<div class="scroll"><table class="plain">' +
-    '<tr><th>Thời gian</th><th>Tình huống</th><th class="num">Số câu hỏi</th><th class="num">Thời gian làm</th><th class="num">Chuẩn IMA (30p)</th><th class="num">Hoàn thành</th></tr>';
-  list.slice(0, 30).forEach(r => {
+    '<tr><th>Thời gian</th><th>Tình huống</th><th class="num">Số câu hỏi</th><th class="num">Thời gian làm</th><th class="num">Chuẩn IMA (30p)</th><th class="num">Hoàn thành</th><th class="num" style="text-align:center">Chi tiết</th></tr>';
+  list.slice(0, 30).forEach((r, idx) => {
     const isPass = r.imaPass !== undefined ? r.imaPass : (r.secs <= 1800);
     const dateStr = r.ts ? new Date(r.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + r.date : r.date;
     h += '<tr>' +
@@ -6186,11 +6208,270 @@ function renderCbqHistory(){
       '<td class="num"><b>' + fmt(r.secs) + '</b></td>' +
       '<td class="num">' + (isPass ? '<span class="tag good">✓ Kịp 30p</span>' : '<span class="tag warn">⚠ Quá 30p (+' + fmt(r.secs - 1800) + ')</span>') + '</td>' +
       '<td class="num">' + (r.done !== undefined ? r.done + '/' + (r.itemsCount || '–') : 'Đã nộp') + '</td>' +
+      '<td class="num" style="text-align:center"><button class="btn sm" onclick="viewCbqHistoryDetail(' + idx + ')" style="padding:4px 10px;font-size:12px;font-weight:600">👁 Xem</button></td>' +
       '</tr>';
   });
   h += '</table></div>';
   card.innerHTML = h;
 }
+
+function viewPracHistoryDetail(idx){
+  const allList = S.prac || [];
+  const list = allList.filter(r => {
+    if(appPart === 'all') return true;
+    if(r.part !== undefined) return String(r.part) === String(appPart);
+    if(r.label && /P1|Part\s*1/i.test(r.label)) return appPart === '1';
+    if(r.label && /P2|Part\s*2/i.test(r.label)) return appPart === '2';
+    return appPart === '2';
+  });
+  const r = list[idx];
+  if(!r) return;
+
+  const modal = $('#pracSummaryModal');
+  if(!modal) return;
+
+  const dateStr = r.ts ? new Date(r.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + r.date : r.date;
+  const isPass = r.imaPass !== undefined ? r.imaPass : (r.pace <= 1.8);
+  const paceSec = r.paceSec || (r.n ? Math.round(r.secs / r.n) : 0);
+  const badCount = r.bad !== undefined ? r.bad : (r.n - r.ok);
+  const flagCount = r.flagCount || 0;
+  const items = r.items || [];
+  const wrongItems = items.filter(it => !it.right);
+  const flagItems = items.filter(it => it.flag);
+
+  let itemsSectionHtml = '';
+  if(items.length > 0){
+    const renderItemList = (arr) => {
+      if(!arr.length) return '<div style="padding:20px;text-align:center;color:var(--mute);font-size:13px">Không có câu hỏi nào trong danh sách này.</div>';
+      return arr.map((it, i) => {
+        const isRight = it.right;
+        const qObj = BYID[it.id];
+        const stemText = it.stem || (qObj ? qObj.stem : '');
+        return '<div class="modal-q-item" style="cursor:pointer" onclick="openSingleQReview(\'' + it.id + '\', \'' + (it.ans || '') + '\')">' +
+          '<div style="flex:1">' +
+            '<div style="font-size:12px;margin-bottom:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+              '<span class="tag ' + (isRight ? 'ok' : 'bad') + '" style="font-weight:700">Câu ' + (items.indexOf(it) + 1) + ' (' + it.id + ')</span>' +
+              '<span class="tag">SU ' + it.u + '.' + it.s + '</span>' +
+              '<span class="tag ' + (isRight ? 'good' : 'warn') + '">' + (isRight ? '✓ Đúng' : '✗ Sai') + '</span>' +
+              (it.flag ? '<span class="tag warn">★ Đánh dấu</span>' : '') +
+            '</div>' +
+            '<div style="font-size:13px;line-height:1.4;color:var(--ink);margin-bottom:6px">' + esc(stemText.slice(0, 110)) + (stemText.length > 110 ? '…' : '') + '</div>' +
+            '<div style="font-size:12px;display:flex;gap:12px;flex-wrap:wrap">' +
+              '<span style="color:' + (isRight ? 'var(--ok)' : 'var(--bad)') + '">Bạn chọn: <b>' + (it.ans || '—') + '</b></span>' +
+              '<span style="color:var(--ok)">Đáp án đúng: <b>' + it.a + '</b></span>' +
+            '</div>' +
+          '</div>' +
+          '<button class="btn sm" style="font-size:12px;padding:4px 8px;white-space:nowrap">Xem lời giải ▶</button>' +
+        '</div>';
+      }).join('');
+    };
+
+    itemsSectionHtml =
+      '<div style="display:flex;gap:8px;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:8px">' +
+        '<button class="modal-tab-btn on" id="histTabAll">Tất cả câu (' + items.length + ')</button>' +
+        '<button class="modal-tab-btn" id="histTabWrong">❌ Câu sai (' + wrongItems.length + ')</button>' +
+        '<button class="modal-tab-btn" id="histTabFlag">⭐ Đánh dấu (' + flagItems.length + ')</button>' +
+      '</div>' +
+      '<div id="histSecAll">' + renderItemList(items) + '</div>' +
+      '<div id="histSecWrong" class="hide">' + renderItemList(wrongItems) + '</div>' +
+      '<div id="histSecFlag" class="hide">' + renderItemList(flagItems) + '</div>';
+  } else {
+    const paceDiff = Math.abs(r.pace - 1.8).toFixed(2);
+    const totalTimeSavedOrOver = Math.abs((1.8 - r.pace) * (r.n || 1)).toFixed(1);
+    itemsSectionHtml =
+      '<div style="background:var(--bg2, rgba(255,255,255,0.03));border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px">' +
+        '<h4 style="margin:0 0 10px 0;font-size:14px;color:var(--ink)">Phân tích chi tiết lượt làm</h4>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;font-size:13px">' +
+          '<div>• <b>Thời gian làm bài:</b> ' + esc(dateStr) + '</div>' +
+          '<div>• <b>Nội dung bài tập:</b> ' + esc(r.label || 'Luyện tập') + '</div>' +
+          '<div>• <b>Tiêu chuẩn IMA (1.8p):</b> ' + (isPass ? '<span style="color:var(--ok)">Nhanh hơn ' + paceDiff + ' p/câu (tiết kiệm ~' + totalTimeSavedOrOver + ' phút)</span>' : '<span style="color:var(--warn)">Chậm hơn ' + paceDiff + ' p/câu (vượt ~' + totalTimeSavedOrOver + ' phút)</span>') + '</div>' +
+          '<div>• <b>Đánh giá kết quả:</b> ' + (r.pct >= 75 ? '<span style="color:var(--ok)">✓ Đạt chuẩn đỗ CMA (≥75%)</span>' : '<span style="color:var(--warn)">⚠ Dưới chuẩn đỗ CMA (&lt;75%)</span>') + '</div>' +
+        '</div>' +
+        '<div class="mute" style="margin-top:14px;padding:10px 12px;background:rgba(59,130,246,0.08);border-left:3px solid var(--pri);border-radius:4px;font-size:12.5px;line-height:1.4">' +
+          '💡 <b>Tính năng mới:</b> Danh sách chi tiết từng câu hỏi đã làm và nút xem lại lời giải chi tiết sẽ được tự động lưu lại từ các lượt làm bài tiếp theo.' +
+        '</div>' +
+      '</div>';
+  }
+
+  modal.innerHTML =
+    '<div class="modal-box">' +
+      '<div class="modal-head">' +
+        '<h3><span>⏱</span> Chi tiết lượt luyện tập <span class="mute" style="font-size:13px;font-weight:400">· ' + esc(r.label || 'Luyện tập') + ' (' + esc(dateStr) + ')</span></h3>' +
+        '<button class="modal-close" id="histModalCloseBtnTop" title="Đóng">✕</button>' +
+      '</div>' +
+      '<div class="modal-body">' +
+        '<div class="kpis" style="margin-bottom:14px">' +
+          '<div class="kpi"><b>' + r.n + (r.total && r.total !== r.n ? '/' + r.total : '') + '</b><span>câu đã làm</span></div>' +
+          '<div class="kpi"><b style="color:var(--ok)">' + r.ok + '</b><span>câu đúng</span></div>' +
+          '<div class="kpi"><b style="color:var(--bad)">' + badCount + '</b><span>câu sai</span></div>' +
+          '<div class="kpi"><b style="color:var(--warn)">' + flagCount + '</b><span>đánh dấu</span></div>' +
+          '<div class="kpi"><b style="color:' + (r.pct >= 75 ? 'var(--ok)' : (r.pct >= 60 ? 'var(--warn)' : 'var(--bad)')) + '">' + r.pct + '%</b><span>tỉ lệ đúng</span></div>' +
+          '<div class="kpi"><b>' + fmt(r.secs) + '</b><span>tổng thời gian</span></div>' +
+          '<div class="kpi"><b style="color:' + (isPass ? 'var(--ok)' : 'var(--warn)') + '">' + r.pace + ' p/câu</b><span>bình quân (' + paceSec + 's/câu)</span></div>' +
+        '</div>' +
+        '<div class="banner-pace ' + (isPass ? 'ok' : 'warn') + '" style="margin-bottom:16px">' +
+          (isPass
+            ? '✓ <b>Tốc độ đạt chuẩn IMA:</b> Bình quân <b>' + r.pace + ' phút/câu</b> (' + paceSec + 's/câu) — nhanh hơn hoặc bằng mức chuẩn quy định của IMA (<b>≤ 1.8 phút/câu</b>, tức 100 câu trong 180 phút). Rất tốt!'
+            : '⚠ <b>Chậm hơn chuẩn IMA:</b> Bình quân <b>' + r.pace + ' phút/câu</b> (' + paceSec + 's/câu) — vượt mức tiêu chuẩn <b>1.8 phút/câu</b> của IMA. Bạn nên luyện đọc lướt và nhận diện dữ kiện nhanh hơn.') +
+        '</div>' +
+        itemsSectionHtml +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn pri" id="histModalCloseBtn">Đóng</button>' +
+        '<div style="display:flex;gap:8px">' +
+          (wrongItems.length ? '<button class="btn warn" id="histRedoWrongBtn">↻ Làm lại ' + wrongItems.length + ' câu sai</button>' : '') +
+          (items.length ? '<button class="btn" id="histReviewAllBtn">👁 Xem lại cả ' + items.length + ' câu</button>' : '') +
+          '<button class="btn" id="histNewPracBtn">Luyện tập lượt mới</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  modal.classList.remove('hide');
+  modal.onclick = (e) => { if(e.target === modal) closePracSummaryModal(); };
+
+  const cTop = $('#histModalCloseBtnTop'), cBot = $('#histModalCloseBtn');
+  if(cTop) cTop.onclick = closePracSummaryModal;
+  if(cBot) cBot.onclick = closePracSummaryModal;
+
+  if(items.length > 0){
+    const tAll = $('#histTabAll'), tW = $('#histTabWrong'), tF = $('#histTabFlag');
+    const sAll = $('#histSecAll'), sW = $('#histSecWrong'), sF = $('#histSecFlag');
+    if(tAll && tW && tF){
+      tAll.onclick = () => {
+        tAll.classList.add('on'); tW.classList.remove('on'); tF.classList.remove('on');
+        sAll.classList.remove('hide'); sW.classList.add('hide'); sF.classList.add('hide');
+      };
+      tW.onclick = () => {
+        tW.classList.add('on'); tAll.classList.remove('on'); tF.classList.remove('on');
+        sW.classList.remove('hide'); sAll.classList.add('hide'); sF.classList.add('hide');
+      };
+      tF.onclick = () => {
+        tF.classList.add('on'); tAll.classList.remove('on'); tW.classList.remove('on');
+        sF.classList.remove('hide'); sAll.classList.add('hide'); sF.classList.add('hide');
+      };
+    }
+
+    const redoBtn = $('#histRedoWrongBtn');
+    if(redoBtn){
+      redoBtn.onclick = () => {
+        closePracSummaryModal();
+        const wrongIds = wrongItems.map(it => it.id);
+        startRun(wrongIds, {redo:true, label:'Làm lại ' + wrongIds.length + ' câu sai (Lượt ' + r.date + ')'});
+        go('practice');
+      };
+    }
+
+    const revAllBtn = $('#histReviewAllBtn');
+    if(revAllBtn){
+      revAllBtn.onclick = () => {
+        closePracSummaryModal();
+        const allIds = items.map(it => it.id);
+        startRun(allIds, {redo:true, label:'Xem lại ' + allIds.length + ' câu (Lượt ' + r.date + ')'});
+        go('practice');
+      };
+    }
+  }
+
+  const newPracBtn = $('#histNewPracBtn');
+  if(newPracBtn){
+    newPracBtn.onclick = () => {
+      closePracSummaryModal();
+      go('setup');
+    };
+  }
+}
+
+function openSingleQReview(qid, pickedAns){
+  closePracSummaryModal();
+  if(!BYID[qid]){
+    toast('Không tìm thấy câu hỏi ' + qid, 'warn');
+    return;
+  }
+  startRun([qid], {review:true, redo:true, label:'Xem lại câu ' + qid});
+  if(pickedAns !== undefined && pickedAns !== null && pickedAns !== ''){
+    run.answered[qid] = pickedAns;
+  }
+  run.review = true;
+  run.submitted = true;
+  drawQ();
+  renderNav();
+  go('practice');
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function viewCbqHistoryDetail(idx){
+  const allList = S.cbqHist || [];
+  const list = allList.filter(r => {
+    if(appPart === 'all') return true;
+    const c = CBQ.cases.find(x => x.cid === r.cid || x.id === r.cid || x.title === r.title);
+    const p = (c && c.part) ? c.part : (r.part ? String(r.part) : (r.title && /P1|Part\s*1/i.test(r.title) ? '1' : '2'));
+    return String(p) === String(appPart);
+  });
+  const r = list[idx];
+  if(!r) return;
+
+  const modal = $('#pracSummaryModal');
+  if(!modal) return;
+
+  const dateStr = r.ts ? new Date(r.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + ' ' + r.date : r.date;
+  const isPass = r.imaPass !== undefined ? r.imaPass : (r.secs <= 1800);
+  const targetSecs = r.targetSecs || 1800;
+  const diffSecs = Math.abs(r.secs - targetSecs);
+
+  modal.innerHTML =
+    '<div class="modal-box">' +
+      '<div class="modal-head">' +
+        '<h3><span>⏱</span> Chi tiết bài làm tình huống CBQ <span class="mute" style="font-size:13px;font-weight:400">· ' + esc(r.cid || '') + ' (' + esc(dateStr) + ')</span></h3>' +
+        '<button class="modal-close" id="cbqHistModalCloseBtnTop" title="Đóng">✕</button>' +
+      '</div>' +
+      '<div class="modal-body">' +
+        '<div class="kpis" style="margin-bottom:14px">' +
+          '<div class="kpi"><b>' + esc(r.cid || 'Case') + '</b><span>mã tình huống</span></div>' +
+          '<div class="kpi"><b>' + (r.itemsCount || '–') + '</b><span>số câu hỏi con</span></div>' +
+          '<div class="kpi"><b>' + fmt(r.secs) + '</b><span>thời gian làm</span></div>' +
+          '<div class="kpi"><b style="color:' + (isPass ? 'var(--ok)' : 'var(--warn)') + '">' + (isPass ? '✓ Đạt chuẩn' : '⚠ Chậm hơn') + '</b><span>chuẩn IMA (30p)</span></div>' +
+          '<div class="kpi"><b>' + (r.scorePct !== undefined ? r.scorePct + '%' : (r.done || 'Đã nộp')) + '</b><span>điểm số/hoàn thành</span></div>' +
+        '</div>' +
+        '<div class="banner-pace ' + (isPass ? 'ok' : 'warn') + '" style="margin-bottom:16px">' +
+          (isPass
+            ? '✓ <b>Kịp thời gian chuẩn IMA:</b> Bạn đã hoàn thành tình huống này trong <b>' + fmt(r.secs) + '</b>, nhanh hơn định mức 30 phút (' + fmt(diffSecs) + '). Rất tốt!'
+            : '⚠ <b>Vượt quá chuẩn IMA:</b> Thời gian làm bài là <b>' + fmt(r.secs) + '</b>, vượt quá định mức 30 phút quy định của IMA (' + fmt(diffSecs) + '). Cần phân bổ thời gian đọc case nhanh hơn.') +
+        '</div>' +
+        '<div style="background:var(--bg2, rgba(255,255,255,0.03));border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px">' +
+          '<h4 style="margin:0 0 10px 0;font-size:14px;color:var(--ink)">Tình huống: ' + esc(r.title || r.cid) + '</h4>' +
+          '<div style="font-size:13px;line-height:1.5;color:var(--mute)">' +
+            '<div>• <b>Thời gian làm bài:</b> ' + esc(dateStr) + '</div>' +
+            '<div>• <b>Số câu đã làm:</b> ' + (r.done !== undefined ? r.done + '/' + (r.itemsCount || '–') : 'Đã nộp') + '</div>' +
+            (r.ok !== undefined ? '<div>• <b>Số câu đúng:</b> <span style="color:var(--ok)">' + r.ok + '/' + (r.totalGraded || r.itemsCount) + '</span></div>' : '') +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="modal-foot">' +
+        '<button class="btn pri" id="cbqHistModalCloseBtn">Đóng</button>' +
+        '<button class="btn ok" id="cbqHistOpenCaseBtn">Mở lại tình huống này ▶</button>' +
+      '</div>' +
+    '</div>';
+
+  modal.classList.remove('hide');
+  modal.onclick = (e) => { if(e.target === modal) closePracSummaryModal(); };
+
+  const cTop = $('#cbqHistModalCloseBtnTop'), cBot = $('#cbqHistModalCloseBtn');
+  if(cTop) cTop.onclick = closePracSummaryModal;
+  if(cBot) cBot.onclick = closePracSummaryModal;
+
+  const openBtn = $('#cbqHistOpenCaseBtn');
+  if(openBtn){
+    openBtn.onclick = () => {
+      closePracSummaryModal();
+      go('cbq');
+      if(typeof openCase === 'function') openCase(r.cid);
+    };
+  }
+}
+
+window.viewPracHistoryDetail = viewPracHistoryDetail;
+window.viewCbqHistoryDetail = viewCbqHistoryDetail;
+window.openSingleQReview = openSingleQReview;
 const kpi = (v, l) => '<div class="kpi"><b>' + v + '</b><span>' + l + '</span></div>';
 
 function updateWrongUnitDropdown(){
